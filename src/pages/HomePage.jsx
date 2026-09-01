@@ -28,17 +28,15 @@ export default function HomePage() {
 
   return (
     <div className="home-container">
-      {/* Left Setup Panel */}
-      <div className="home-panel">
-        <div className="home-brand-badge">
-          <span>✦</span>
-          <span>Nordic Chess</span>
-        </div>
+      {/* Left Setup Column */}
+      <div className="home-left-col">
+        <div className="home-brand-title">Square64</div>
 
-        <h1 className="home-title">Master the Board</h1>
-        <p className="home-subtitle">
-          Distraction-free chess against adaptive Stockfish AI engine.
-        </p>
+        <div className="home-panel">
+          <h1 className="home-title">Master the Board</h1>
+          <p className="home-subtitle">
+            Distraction-free chess against adaptive Stockfish AI engine.
+          </p>
 
         {/* Color Selection */}
         <section className="home-section">
@@ -109,6 +107,7 @@ export default function HomePage() {
           Start Game →
         </button>
       </div>
+    </div>
 
       {/* Right Preview Board */}
       <div className="home-preview-wrapper">
@@ -118,9 +117,6 @@ export default function HomePage() {
             orientation={previewOrientation}
             isPlayerTurn={false}
           />
-        </div>
-        <div className="home-preview-caption">
-          Adaptive AI Engine • Stockfish
         </div>
       </div>
     </div>
