@@ -90,8 +90,9 @@ export default function useChessGame({ playerColor = "w", difficulty = "intermed
   const [lastMove, setLastMove] = useState(initial.lastMove);
   const [pendingPromotion, setPendingPromotion] = useState(null); // { from, to }
   const [checkSquare, setCheckSquare] = useState(initial.checkSquare);
+  const [redoStack, setRedoStack] = useState([]);
 
-  const { isReady, isThinking, requestMove, setDifficulty } = useStockfish(difficulty);
+  const { isReady, isThinking, requestMove, setDifficulty, stop: stopStockfish } = useStockfish(difficulty);
   const playSound = useSound();
 
   useEffect(() => {
@@ -152,6 +153,7 @@ export default function useChessGame({ playerColor = "w", difficulty = "intermed
       if (!move) return false;
 
       setLastMove({ from: move.from, to: move.to });
+      setRedoStack([]);
       syncFromGame();
 
       // Sound priority: checkmate > check > capture > plain move.
@@ -192,6 +194,59 @@ export default function useChessGame({ playerColor = "w", difficulty = "intermed
 
   const cancelPromotion = useCallback(() => setPendingPromotion(null), []);
 
+  const undo = useCallback(() => {
+    stopStockfish();
+    const game = gameRef.current;
+    if (game.history().length === 0) return;
+
+    const undoneMoves = [];
+
+    if (game.turn() === playerColor) {
+      const m1 = game.undo();
+      if (m1) undoneMoves.unshift(m1);
+      if (game.history().length > 0) {
+        const m2 = game.undo();
+        if (m2) undoneMoves.unshift(m2);
+      }
+    } else {
+      const m = game.undo();
+      if (m) undoneMoves.unshift(m);
+    }
+
+    if (undoneMoves.length > 0) {
+      setRedoStack((prev) => [...prev, undoneMoves]);
+      const hist = game.history({ verbose: true });
+      const last = hist[hist.length - 1];
+      setLastMove(last ? { from: last.from, to: last.to } : null);
+      setPendingPromotion(null);
+      syncFromGame();
+      playSound("move");
+    }
+  }, [stopStockfish, playerColor, syncFromGame, playSound]);
+
+  const redo = useCallback(() => {
+    if (redoStack.length === 0) return;
+    stopStockfish();
+    const game = gameRef.current;
+    const movesToRedo = redoStack[redoStack.length - 1];
+    setRedoStack((prev) => prev.slice(0, -1));
+
+    for (const m of movesToRedo) {
+      try {
+        game.move({ from: m.from, to: m.to, promotion: m.promotion });
+      } catch {
+        // ignore invalid replay
+      }
+    }
+
+    const hist = game.history({ verbose: true });
+    const last = hist[hist.length - 1];
+    setLastMove(last ? { from: last.from, to: last.to } : null);
+    setPendingPromotion(null);
+    syncFromGame();
+    playSound("move");
+  }, [stopStockfish, redoStack, syncFromGame, playSound]);
+
   // Trigger Stockfish whenever it becomes the engine's turn.
   useEffect(() => {
     if (status !== "playing") return;
@@ -220,6 +275,7 @@ export default function useChessGame({ playerColor = "w", difficulty = "intermed
     setLastMove(null);
     setPendingPromotion(null);
     setCheckSquare(null);
+    setRedoStack([]);
     try {
       sessionStorage.removeItem("chess_game_state");
     } catch {
@@ -249,5 +305,9 @@ export default function useChessGame({ playerColor = "w", difficulty = "intermed
     newGame,
     turn,
     isCheck: checkSquare !== null,
+    canUndo: history.length > 0,
+    canRedo: redoStack.length > 0,
+    undo,
+    redo,
   };
 }

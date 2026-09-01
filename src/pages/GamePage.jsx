@@ -63,10 +63,38 @@ function GameBoard({ playerColor, difficulty, onExit }) {
     resign,
     turn,
     isCheck,
+    canUndo,
+    canRedo,
+    undo,
+    redo,
   } = useChessGame({ playerColor, difficulty });
 
   const orientation = playerColor === "w" ? "white" : "black";
   const winnerIsPlayer = status === "checkmate" && turn !== playerColor;
+
+  // Keyboard shortcuts: Press Z for Undo, X for Redo
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      const tag = document.activeElement?.tagName?.toLowerCase();
+      if (tag === "input" || tag === "textarea") return;
+
+      const key = e.key.toLowerCase();
+      if (key === "z") {
+        if (canUndo) {
+          e.preventDefault();
+          undo();
+        }
+      } else if (key === "x") {
+        if (canRedo) {
+          e.preventDefault();
+          redo();
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [undo, redo, canUndo, canRedo]);
 
   return (
     <div className="game-container">
@@ -124,9 +152,39 @@ function GameBoard({ playerColor, difficulty, onExit }) {
             />
           )}
 
-          <div style={{ width: "100%", display: "flex", justifyContent: "flex-end" }}>
-            <button type="button" className="btn btn-outline" onClick={resign}>
-              Resign Match
+          <div className="game-controls-bar">
+            <div className="game-action-buttons">
+              <button
+                type="button"
+                className="btn btn-control"
+                onClick={undo}
+                disabled={!canUndo}
+                title="Undo move (Press Z)"
+              >
+                <span>↶</span>
+                <span>Undo</span>
+                <kbd className="btn-kbd">Z</kbd>
+              </button>
+              <button
+                type="button"
+                className="btn btn-control"
+                onClick={redo}
+                disabled={!canRedo}
+                title="Redo move (Press X)"
+              >
+                <span>↷</span>
+                <span>Redo</span>
+                <kbd className="btn-kbd">X</kbd>
+              </button>
+            </div>
+
+            <button
+              type="button"
+              className="btn btn-outline btn-resign"
+              onClick={resign}
+              disabled={status !== "playing"}
+            >
+              Resign
             </button>
           </div>
         </div>
@@ -153,6 +211,8 @@ function GameBoard({ playerColor, difficulty, onExit }) {
         status={status}
         winnerIsPlayer={winnerIsPlayer}
         onExit={onExit}
+        onUndo={undo}
+        canUndo={canUndo}
       />
     </div>
   );
